@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Телесуфлёр</title>
+<style>
+  :root { --bg:#0c0c0e; --fg:#f5f5f7; --dim:rgba(255,255,255,.32); --accent:#ff3b30; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body { background:var(--bg); color:var(--fg); font-family:-apple-system,'Segoe UI',Roboto,sans-serif; overflow:hidden; -webkit-tap-highlight-color:transparent; }
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column; }
+
+  /* ---------- Экран ввода ---------- */
+  #setup { padding:22px; gap:16px; }
+  #setup h1 { font-size:24px; }
+  #setup textarea { flex:1; background:#18181c; color:var(--fg); border:1px solid #2c2c32; border-radius:14px; padding:18px; font-size:18px; line-height:1.5; resize:none; outline:none; }
+  #setup textarea:focus { border-color:var(--accent); }
+  .field { display:flex; flex-direction:column; gap:8px; }
+  .field label { font-size:14px; color:#9a9aa2; }
+  .field .val { color:var(--fg); font-weight:600; }
+  input[type=range] { width:100%; accent-color:var(--accent); height:28px; }
+  #start { background:var(--accent); color:#fff; border:none; border-radius:14px; font-size:20px; font-weight:700; padding:16px; cursor:pointer; }
+
+  /* ---------- Экран чтения ---------- */
+  #prompter { background:var(--bg); }
+  #viewport { position:absolute; inset:0; overflow:hidden; }
+  #readline { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:74%; height:3px; background:var(--accent); border-radius:2px; opacity:.95; }
+  #scroller { position:absolute; top:0; left:0; right:0; will-change:transform; }
+  .word { display:block; text-align:center; line-height:1.3; padding:.12em .25em; color:var(--dim); transition:color .18s, transform .18s; }
+  .word.active { color:var(--fg); transform:scale(1.05); text-shadow:0 0 26px rgba(255,255,255,.28); }
+  .word.done { color:rgba(255,255,255,.14); }
+  #hint { position:absolute; top:14px; left:0; right:0; text-align:center; color:#6f6f76; font-size:13px; pointer-events:none; }
+  #controls { position:absolute; left:0; right:0; bottom:0; padding:14px 16px calc(14px + env(safe-area-inset-bottom)); background:linear-gradient(transparent, rgba(0,0,0,.72)); display:flex; flex-direction:column; gap:10px; }
+  .row { display:flex; align-items:center; gap:12px; }
+  .row label { font-size:13px; color:#9a9aa2; width:40px; flex:none; }
+  .row input[type=range] { flex:1; height:26px; }
+  .btnrow { display:flex; gap:10px; }
+  .btnrow button { flex:1; padding:12px 6px; font-size:15px; font-weight:600; background:#2c2c32; color:#fff; border:none; border-radius:12px; cursor:pointer; }
+  .btnrow button.primary { background:var(--accent); }
+</style>
+</head>
+<body>
+
+  <div id="setup" class="screen">
+    <h1>Телесуфлёр</h1>
+    <textarea id="text" placeholder="Вставь или напиши текст сюда…"></textarea>
+    <div class="field">
+      <label>Скорость: <span class="val" id="speedVal">1.0</span></label>
+      <input id="speed" type="range" min="0.4" max="2.5" step="0.1" value="1.0">
+    </div>
+    <div class="field">
+      <label>Размер текста: <span class="val" id="sizeVal">90</span></label>
+      <input id="size" type="range" min="40" max="180" step="5" value="90">
+    </div>
+    <button id="start">Запустить</button>
+  </div>
+
+  <div id="prompter" class="screen" style="display:none;">
+    <div id="viewport">
+      <div id="scroller"></div>
+      <div id="readline"></div>
+    </div>
+    <div id="hint">Коснись текста — пауза / старт</div>
+    <div id="controls">
+      <div class="row">
+        <label>Скор.</label>
+        <input id="speed2" type="range" min="0.4" max="2.5" step="0.1" value="1.0">
+      </div>
+      <div class="row">
+        <label>Разм.</label>
+        <input id="size2" type="range" min="40" max="180" step="5" value="90">
+      </div>
+      <div class="btnrow">
+        <button id="restart">Сначала</button>
+        <button id="play" class="primary">Старт</button>
+        <button id="edit">Текст</button>
+        <button id="fs">Во весь экран</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+
+  var setup = $('setup'), prompter = $('prompter');
+  var textarea = $('text'), speed1 = $('speed'), size1 = $('size'), startBtn = $('start');
+  var viewport = $('viewport'), scroller = $('scroller');
+  var speed2 = $('speed2'), size2 = $('size2');
+  var playBtn = $('play'), restartBtn = $('restart'), editBtn = $('edit'), fsBtn = $('fs');
+
+  var words = [], wordEls = [], current = 0, playing = false, timer = null;
+  var speed = 1.0, fontSize = 90;
+
+  function setSize(v) {
+    fontSize = v;
+    wordEls.forEach(function (el) { el.style.fontSize = v + 'px'; });
+  }
+
+  // длинное слово висит дольше, короткое — меньше
+  function wordDuration(w) {
+    return (w.length * 0.16 + 0.4) * 1000 / speed;
+  }
+
+  function build() {
+    words = textarea.value.trim().split(/\s+/).filter(Boolean);
+    scroller.innerHTML = '';
+    wordEls = words.map(function (w) {
+      var s = document.createElement('span');
+      s.className = 'word';
+      s.textContent = w;
+      s.style.fontSize = fontSize + 'px';
+      scroller.appendChild(s);
+      return s;
+    });
+    current = 0;
+  }
+
+  function position(glide) {
+    var el = wordEls[current];
+    if (!el) return;
+    var vh = viewport.clientHeight;
+    var y = vh / 2 - el.offsetTop - el.offsetHeight / 2;
+    scroller.style.transition = 'transform ' + (glide || 0.25) + 's ease';
+    scroller.style.transform = 'translateY(' + y + 'px)';
+    wordEls.forEach(function (w, i) {
+      w.classList.toggle('active', i === current);
+      w.classList.toggle('done', i < current);
+    });
+  }
+
+  function go() {
+    if (!playing || current >= words.length) { stop(); return; }
+    position(0.28);
+    var dur = wordDuration(words[current]);
+    timer = setTimeout(function () { current++; go(); }, dur);
+  }
+
+  function play() {
+    if (words.length === 0) return;
+    if (current >= words.length) current = 0;
+    playing = true;
+    playBtn.textContent = 'Пауза';
+    go();
+  }
+  function pause() {
+    playing = false;
+    clearTimeout(timer);
+    playBtn.textContent = 'Старт';
+  }
+  function stop() {
+    pause();
+    current = 0;
+    position(0.2);
+  }
+
+  startBtn.addEventListener('click', function () {
+    if (!textarea.value.trim()) { alert('Сначала вставь текст'); return; }
+    build();
+    speed = parseFloat(speed1.value);
+    fontSize = parseInt(size1.value, 10);
+    speed2.value = speed1.value;
+    size2.value = size1.value;
+    setSize(fontSize);
+    setup.style.display = 'none';
+    prompter.style.display = 'flex';
+    position(0);
+  });
+
+  speed1.addEventListener('input', function () { $('speedVal').textContent = parseFloat(speed1.value).toFixed(1); });
+  size1.addEventListener('input', function () { $('sizeVal').textContent = size1.value; });
+  speed2.addEventListener('input', function () { speed = parseFloat(speed2.value); });
+  size2.addEventListener('input', function () { setSize(parseInt(size2.value, 10)); position(0.15); });
+
+  viewport.addEventListener('click', function () { playing ? pause() : play(); });
+  playBtn.addEventListener('click', function () { playing ? pause() : play(); });
+  restartBtn.addEventListener('click', stop);
+  editBtn.addEventListener('click', function () { pause(); prompter.style.display = 'none'; setup.style.display = 'flex'; });
+  fsBtn.addEventListener('click', function () {
+    if (!document.fullscreenElement) { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); }
+    else { document.exitFullscreen && document.exitFullscreen(); }
+  });
+})();
+</script>
+</body>
+</html>

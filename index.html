@@ -26,6 +26,8 @@
   .field label { font-size:14px; color:#9a9aa2; }
   .field .val { color:var(--fg); font-weight:600; }
   #setup input[type=range] { width:100%; height:28px; }
+  #duration { text-align:center; font-size:14px; color:#9a9aa2; }
+  #duration b { color:var(--fg); font-weight:700; }
   #start { background:var(--accent); color:#fff; border:none; border-radius:14px; font-size:20px; font-weight:700; padding:15px; cursor:pointer; }
 
   /* ---------- Экран чтения ---------- */
@@ -33,34 +35,35 @@
   #viewport { position:absolute; inset:0; overflow:hidden; }
   #readline { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:74%; height:3px; background:var(--accent); border-radius:2px; opacity:.95; }
   #scroller { position:absolute; top:0; left:0; right:0; will-change:transform; }
-  .word { display:block; text-align:center; line-height:1.3; padding:.1em .25em; color:var(--dim); transition:color .18s, transform .18s; }
-  .word.active { color:var(--fg); transform:scale(1.05); text-shadow:0 0 26px rgba(255,255,255,.28); }
+  .word { display:block; width:max-content; margin:0 auto; text-align:center; line-height:1.3; padding:.1em .25em; color:var(--dim); white-space:nowrap; transition:color .18s; }
+  .word.active { color:var(--fg); text-shadow:0 0 26px rgba(255,255,255,.28); }
   .word.done { color:rgba(255,255,255,.14); }
   #hint { position:absolute; top:14px; left:0; right:0; text-align:center; color:#6f6f76; font-size:13px; pointer-events:none; }
 
   #countdown { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55); z-index:20; }
-  #countdown .num { font-size:38vh; font-weight:800; color:var(--accent); line-height:1; }
+  #countdown .num { font-size:34vh; font-weight:800; color:var(--accent); line-height:1; }
 
   #controls { position:absolute; left:0; right:0; bottom:0; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); background:linear-gradient(transparent, rgba(0,0,0,.74)); display:flex; flex-direction:column; gap:10px; }
   .sliders { display:flex; flex-direction:column; gap:10px; }
   .sliders .field { flex-direction:row; align-items:center; gap:10px; }
   .sliders .field label { flex:none; font-size:13px; white-space:nowrap; }
   .sliders .field input { flex:1; height:26px; min-width:0; }
-  .sliders .field .val { flex:none; min-width:34px; text-align:right; font-size:15px; font-weight:700; color:var(--fg); }
+  .sliders .field .val { flex:none; min-width:38px; text-align:right; font-size:15px; font-weight:700; color:var(--fg); }
   .buttons { display:flex; gap:10px; }
   .buttons button { flex:1; padding:12px 6px; font-size:15px; font-weight:600; background:#2c2c32; color:#fff; border:none; border-radius:12px; cursor:pointer; }
   .buttons button.primary { background:var(--accent); }
 
   /* ---------- Горизонтальный режим ---------- */
   @media (orientation: landscape) {
+    #viewport { left:190px; }
     #readline { top:36%; }
-    #controls { left:0; right:auto; top:0; bottom:0; width:160px; padding:12px 10px calc(12px + env(safe-area-inset-bottom)); padding-left:calc(10px + env(safe-area-inset-left)); background:linear-gradient(to right, rgba(0,0,0,.78), rgba(0,0,0,0)); flex-direction:column; justify-content:center; gap:14px; }
+    #controls { left:0; right:auto; top:0; bottom:0; width:190px; padding:12px 8px calc(12px + env(safe-area-inset-bottom)); padding-left:calc(8px + env(safe-area-inset-left)); background:linear-gradient(to right, rgba(0,0,0,.78), rgba(0,0,0,0)); flex-direction:column; justify-content:center; gap:14px; }
     .sliders { flex-direction:row; gap:14px; justify-content:center; align-items:flex-start; }
     .sliders .field { flex-direction:column; gap:8px; align-items:center; }
-    .sliders .field label { font-size:12px; white-space:nowrap; }
-    .sliders .field .val { font-size:14px; font-weight:700; }
-    .vwrap { width:44px; height:140px; position:relative; }
-    .vwrap input { position:absolute; left:50%; top:50%; width:140px; height:44px; margin:0; transform:translate(-50%,-50%) rotate(-90deg); }
+    .sliders .field label { font-size:11px; white-space:nowrap; }
+    .sliders .field .val { font-size:13px; font-weight:700; min-width:0; text-align:center; }
+    .vwrap { width:44px; height:120px; position:relative; }
+    .vwrap input { position:absolute; left:50%; top:50%; width:120px; height:44px; margin:0; transform:translate(-50%,-50%) rotate(-90deg); }
     .buttons { flex-direction:column; gap:8px; }
     .buttons button { flex:none; padding:11px 6px; }
 
@@ -86,6 +89,7 @@
           <label>Размер: <span class="val" id="sizeVal">8</span></label>
           <input id="size" type="range" min="1" max="20" step="1" value="8">
         </div>
+        <div id="duration">Займёт примерно <b id="durationVal">0:00</b></div>
         <button id="start">Запустить</button>
       </div>
     </div>
@@ -110,6 +114,11 @@
           <div class="vwrap"><input id="size2" type="range" min="1" max="20" step="1" value="8"></div>
           <span class="val" id="size2Val">8</span>
         </div>
+        <div class="field">
+          <label>Таймер</label>
+          <div class="vwrap"><input id="timer2" type="range" min="0" max="60" step="1" value="0"></div>
+          <span class="val" id="timer2Val">0с</span>
+        </div>
       </div>
       <div class="buttons">
         <button id="restart">Сначала</button>
@@ -125,9 +134,10 @@
 
   var setup = $('setup'), prompter = $('prompter');
   var textarea = $('text'), speed1 = $('speed'), size1 = $('size'), startBtn = $('start');
+  var durationVal = $('durationVal');
   var viewport = $('viewport'), scroller = $('scroller'), readline = $('readline');
-  var speed2 = $('speed2'), size2 = $('size2');
-  var speed2Val = $('speed2Val'), size2Val = $('size2Val');
+  var speed2 = $('speed2'), size2 = $('size2'), timer2 = $('timer2');
+  var speed2Val = $('speed2Val'), size2Val = $('size2Val'), timer2Val = $('timer2Val');
   var playBtn = $('play'), restartBtn = $('restart'), editBtn = $('edit');
   var countdownEl = $('countdown');
 
@@ -138,7 +148,7 @@
   var words = [], wordEls = [], current = 0;
   var playing = false, counting = false;
   var timer = null, cdTimer = null;
-  var speed = 1.0, fontSize = 90;
+  var speed = 1.0, scale = 8, delay = 0;
 
   function isGlue(w) {
     var clean = w.toLowerCase().replace(/[^а-яё]/g, '');
@@ -160,14 +170,6 @@
     return out;
   }
 
-  function setSize(v) {
-    fontSize = v;
-    wordEls.forEach(function (el) { el.style.fontSize = v + 'px'; });
-  }
-
-  // шкала 1..20 -> размер шрифта в пикселях
-  function sizeToPx(scale) { return 32 + scale * 8; }
-
   // почти одинаковая длительность, длинные слова лишь чуть дольше
   function wordDuration(w) {
     var bonus = Math.min(w.length, 12) * 0.02;
@@ -181,11 +183,27 @@
       var s = document.createElement('span');
       s.className = 'word';
       s.textContent = w;
-      s.style.fontSize = fontSize + 'px';
       scroller.appendChild(s);
       return s;
     });
     current = 0;
+  }
+
+  // размер привязан к ширине экрана + самое длинное слово всегда влезает
+  function availableWidth() {
+    return Math.max(60, viewport.clientWidth - 20);
+  }
+  function applySize() {
+    var avail = availableWidth();
+    var base = avail * (scale + 4) / 100;
+    wordEls.forEach(function (el) { el.style.fontSize = base + 'px'; });
+    var maxW = 0;
+    wordEls.forEach(function (el) { var w = el.offsetWidth; if (w > maxW) maxW = w; });
+    var actual = base;
+    if (maxW > avail) {
+      actual = base * (avail / maxW);
+      wordEls.forEach(function (el) { el.style.fontSize = actual + 'px'; });
+    }
   }
 
   function position(glide) {
@@ -233,9 +251,29 @@
     cdTimer = setTimeout(tick, 700);
   }
 
+  function countdownDelay(n) {
+    counting = true;
+    countdownEl.style.display = 'flex';
+    countdownEl.innerHTML = '<div class="num">' + n + '</div>';
+    function tick() {
+      n--;
+      if (n > 0) {
+        countdownEl.innerHTML = '<div class="num">' + n + '</div>';
+        cdTimer = setTimeout(tick, 1000);
+      } else {
+        countdownEl.style.display = 'none';
+        countdown();
+      }
+    }
+    cdTimer = setTimeout(tick, 1000);
+  }
+
   function play() {
     if (words.length === 0 || playing || counting) return;
-    if (current === 0) { countdown(); return; }
+    if (current === 0) {
+      if (delay > 0) countdownDelay(delay); else countdown();
+      return;
+    }
     startScroll();
   }
 
@@ -257,33 +295,57 @@
     if (playing) pause(); else play();
   }
 
+  // длительность текста при текущей скорости
+  function fmt(sec) {
+    sec = Math.round(sec);
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function estimateDuration() {
+    var ws = tokenize(textarea.value);
+    var sp = parseFloat(speed1.value) || 1;
+    var t = 0;
+    ws.forEach(function (w) { t += (0.5 + Math.min(w.length, 12) * 0.02) / sp; });
+    return t;
+  }
+  function updateDuration() {
+    durationVal.textContent = fmt(estimateDuration());
+  }
+
   startBtn.addEventListener('click', function () {
     if (!textarea.value.trim()) { alert('Сначала вставь текст'); return; }
     speed = parseFloat(speed1.value);
-    fontSize = sizeToPx(parseInt(size1.value, 10));
+    scale = parseInt(size1.value, 10);
     speed2.value = speed1.value;
     size2.value = size1.value;
     speed2Val.textContent = parseFloat(speed1.value).toFixed(1);
     size2Val.textContent = size1.value;
-    build();
     setup.style.display = 'none';
     prompter.style.display = 'flex';
+    build();
+    applySize();
     position(0);
   });
 
-  speed1.addEventListener('input', function () { $('speedVal').textContent = parseFloat(speed1.value).toFixed(1); });
+  textarea.addEventListener('input', updateDuration);
+  speed1.addEventListener('input', function () { $('speedVal').textContent = parseFloat(speed1.value).toFixed(1); updateDuration(); });
   size1.addEventListener('input', function () { $('sizeVal').textContent = size1.value; });
+
   speed2.addEventListener('input', function () { speed = parseFloat(speed2.value); speed2Val.textContent = parseFloat(speed2.value).toFixed(1); });
-  size2.addEventListener('input', function () { size2Val.textContent = size2.value; setSize(sizeToPx(parseInt(size2.value, 10))); position(0.15); });
+  size2.addEventListener('input', function () { scale = parseInt(size2.value, 10); size2Val.textContent = size2.value; applySize(); position(0.15); });
+  timer2.addEventListener('input', function () { delay = parseInt(timer2.value, 10); timer2Val.textContent = delay + 'с'; });
 
   viewport.addEventListener('click', toggle);
   playBtn.addEventListener('click', toggle);
   restartBtn.addEventListener('click', stop);
-  editBtn.addEventListener('click', function () { pause(); prompter.style.display = 'none'; setup.style.display = 'flex'; });
+  editBtn.addEventListener('click', function () { pause(); prompter.style.display = 'none'; setup.style.display = 'flex'; updateDuration(); });
 
   window.addEventListener('resize', function () {
-    if (prompter.style.display !== 'none' && wordEls.length) position(0);
+    if (prompter.style.display !== 'none' && wordEls.length) { applySize(); position(0); }
   });
+
+  updateDuration();
 })();
 </script>
 </body>
